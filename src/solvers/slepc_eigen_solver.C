@@ -757,6 +757,61 @@ void SlepcEigenSolver<T>::attach_deflation_space(NumericVector<T> & deflation_ve
 }
 
 template <typename T>
+void SlepcEigenSolver<T>::set_initial_space(NumericVector<T> & initial_space_in)
+{
+#if SLEPC_VERSION_LESS_THAN(3,1,0)
+  libmesh_error_msg("SLEPc 3.1 is required to call EigenSolver::set_initial_space()");
+#else
+  this->init();
+
+  PetscErrorCode ierr = 0;
+  Vec initial_vector = (cast_ptr<PetscVector<T> *>(&initial_space_in))->vec();
+  ierr = EPSSetInitialSpace(_eps, 1, &initial_vector);
+  LIBMESH_CHKERR(ierr);
+#endif
+}
+
+template <typename T>
+void SlepcEigenSolver<T>::set_spectral_transform(SpectralTransform spect_transform)
+{
+//#if SLEPC_VERSION_LESS_THAN(3,1,0)
+//  libmesh_error_msg("SLEPc 3.1 is required to call EigenSolver::set_spectral_transform()");
+//#else
+  // if not yet initialised, do it now:
+  this->init();
+
+  PetscErrorCode ierr = 0;
+
+  // setup a \p ST object
+  ST st;
+  STCreate(this->comm().get(), &st);
+
+  // Set it to the desired type of spectral transformation.
+  // The value of the respective shift is chosen to be the target
+  // specified via \p set_position_of_spectrum().
+  switch (spect_transform)
+    {
+    case SHIFT:
+      ierr = STSetType(st, STSHIFT);
+      break;
+    case INVERT:
+      ierr = STSetType(st, STSINVERT);
+      break;
+    case CAYLEY:
+      ierr = STSetType(st, STCAYLEY);
+      break;
+    default:
+      // print a warning but do nothing more.
+      break;
+    }
+
+  //tell the \p EPS object which \p ST to use
+  ierr = EPSSetST(_eps, st);
+  LIBMESH_CHKERR(ierr);
+  return;
+}
+
+template <typename T>
 PetscErrorCode SlepcEigenSolver<T>::_petsc_shell_matrix_mult(Mat mat, Vec arg, Vec dest)
 {
   /* Get the matrix context.  */

@@ -205,6 +205,18 @@ public:
   virtual void attach_deflation_space(NumericVector<T> & deflation_vector) libmesh_override;
 
   /**
+   * Provide one basis vector for the initial guess
+   */
+  virtual void
+  set_initial_space(NumericVector<T> & initial_space_in) libmesh_override;
+
+  /**
+   * Set the spectral transformation to be used
+   */
+  virtual void 
+  set_spectral_transform(SpectralTransform st) libmesh_override;
+
+  /**
    * Returns the raw SLEPc eps context pointer.
    */
   EPS eps() { this->init(); return _eps; }

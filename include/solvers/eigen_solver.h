@@ -217,6 +217,20 @@ public:
   virtual void attach_deflation_space(NumericVector<T> & deflation_vector) = 0;
 
   /**
+   * Provide one basis vector for the initial guess
+   */
+  virtual void set_initial_space(NumericVector<T> & initial_space_in) = 0;
+
+  /**
+   * Function to set an spectral transformation algorithm before solving.
+   * Only valid for slepc eigenproblems.
+   * For details see the slepc documentation
+   * (http://slepc.upv.es/documentation/slepc.pdf)
+   * chapter 3.3 
+   */
+  virtual void set_spectral_transform(SpectralTransform st) = 0;
+
+  /**
    * Set the solver configuration object.
    */
   void set_solver_configuration(SolverConfiguration & solver_configuration);
