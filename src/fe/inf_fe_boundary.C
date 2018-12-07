@@ -64,6 +64,8 @@ void InfFE<Dim,T_radial,T_base>::reinit(const Elem * inf_elem,
   bool radial_qrule_initialized = false;
 
   // if we are working on the base-side, the radial function is constant.
+  // With this, we ensure that at least for base elements we reinitialize all quantities
+  // when we enter for the first time.
   if (s == 0)
     current_fe_type.radial_order = 0;
 
@@ -79,6 +81,10 @@ void InfFE<Dim,T_radial,T_base>::reinit(const Elem * inf_elem,
           // build a 0-dimensional quadrature-rule:
           radial_qrule.reset(new QGauss (0,fe_type.radial_order));
           radial_qrule->init(NODEELEM, 0);
+
+          //the base_qrule is set up with dim-1, but apparently we need dim, so we replace it:
+          base_qrule.release();
+          base_qrule=QBase::build(qrule->type(), side->dim(), qrule->get_order());
 
           //FIXME: Do I have to care about the order of my neighbours element?
           //unsigned int side_p_level = elem->p_level();
@@ -105,6 +111,16 @@ void InfFE<Dim,T_radial,T_base>::reinit(const Elem * inf_elem,
   // full element.
   std::vector<Point> qp;
   this->inverse_map (inf_elem, this->_fe_map->get_xyz(), qp, tolerance);
+
+  // just to ensure that we are working on the base and not, for numeric reasons,
+  // somewhere else...
+  if (s==0)
+    {
+      for (unsigned int p=0; p<qp.size(); p++)
+        {
+           qp[p](Dim-1)=-1.;
+        }
+    }
 
   // compute the shape function and derivative values
   // at the points qp
@@ -316,6 +332,7 @@ void InfFE<Dim,T_radial,T_base>::init_face_shape_functions(const std::vector<Poi
 
   }
 
+  // quadrature rule weights
   {
     const std::vector<Real> & radial_qw = radial_qrule->get_weights();
     const std::vector<Real> & base_qw   = base_qrule->get_weights();
