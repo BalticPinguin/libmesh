@@ -57,6 +57,7 @@ using namespace libMesh;
 
 void assemble_func(EquationSystems & es, const std::string & system_name)
 {
+#ifdef LIBMESH_ENABLE_INFINITE_ELEMENTS
   const MeshBase& mesh = es.get_mesh();
   const unsigned int dim = mesh.mesh_dimension();
   LinearImplicitSystem & f_system = es.get_system<LinearImplicitSystem> (system_name);
@@ -151,6 +152,10 @@ void assemble_func(EquationSystems & es, const std::string & system_name)
   /**
    * All done!
    */
+#else //ifdef LIBMESH_ENABLE_INFINITE_ELEMENTS
+  // Avoid compiler warnings
+  libmesh_ignore(es, system_name);
+#endif
   return;
 }
 
@@ -195,7 +200,6 @@ int main (int argc, char** argv)
   mesh.print_info();
   MeshBase::const_element_iterator       elem_it  = mesh.active_local_elements_begin();
   const MeshBase::const_element_iterator elem_end = mesh.active_local_elements_end();
-
 
   // The infinite elements are attached to all elements that build the outer surface of the FEM-region.
   InfElemBuilder builder(mesh);
