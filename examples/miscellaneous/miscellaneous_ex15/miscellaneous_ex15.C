@@ -49,8 +49,8 @@
 //#include "libmesh/fe_interface.h"
 // for refinement:
 #include "libmesh/error_vector.h"
-#include "libmesh/uniform_refinement_estimator.h"
 #include "libmesh/mesh_refinement.h"
+#include "libmesh/kelly_error_estimator.h"
 
 // Bring in everything from the libMesh namespace
 using namespace libMesh;
@@ -189,8 +189,7 @@ int main (int argc, char** argv)
   Mesh mesh(init.comm(), dim);
 
   // fill the meshes with a spherical grid of type HEX27 with radius r
-  //MeshTools::Generation::build_cube (mesh, /*nx= */5, /*ny=*/5, /*nz=*/3,
-  MeshTools::Generation::build_cube (mesh, /*nx= */1, /*ny=*/1, /*nz=*/1,
+  MeshTools::Generation::build_cube (mesh, /*nx= */5, /*ny=*/5, /*nz=*/3,
                                      /*xmin=*/ -5.2, /*xmax=*/5.2,
                                      /*ymin=*/ -5.2, /*ymax=*/5.2,
                                      /*zmin=*/ -3.2, /*zmax=*/3.2,
@@ -271,8 +270,16 @@ int main (int argc, char** argv)
   // NOW THE REFINEMENT-LOOP comes; we use uniform_refinement.
   for (unsigned int i=0; i< 2; ++i)
     {
+
+      ErrorVector error;
       MeshRefinement mesh_refinement(mesh);
-      mesh_refinement.uniformly_refine(1);
+      KellyErrorEstimator error_estimator;
+
+      error_estimator.estimate_error(eig_sys, error);
+      mesh_refinement.refine_fraction()=0.3;
+      mesh_refinement.flag_elements_by_error_fraction(error);
+      error_estimator.estimate_error(eig_sys, error);
+      mesh_refinement.refine_and_coarsen_elements();
       eq_sys.reinit();
 
       // in the refined mesh, find the elements that describe the
