@@ -1267,11 +1267,20 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
     return;
 
   if (child_elem->neighbor_ptr(0) == nullptr ||
-        child_elem->neighbor_ptr(0) != remote_elem)
-     return;
-   //only constrain dofs shared between this element and ones coarser
-  if (child_elem->neighbor_ptr(0)->level() >= child_elem->level())
-     return;
+      child_elem->neighbor_ptr(0) == remote_elem)
+    return;
+
+  //only constrain dofs shared between this element and ones coarser
+  // There are some constraints to apply whenever one of the neighbours is coarser than this one
+  std::vector<unsigned int> coarser_neighbors;
+  //for (auto child_neighbor : child_elem->neighbor_ptr_range())
+  for (unsigned int neighbor=0; neighbor < child_elem->n_neighbors(); ++neighbor)
+    if (child_elem->neighbor_ptr(neighbor)->level() < child_elem->level())
+      coarser_neighbors.emplace_back(neighbor);
+
+  // if this element has no coarser neighbor, no constraints need to be applied.
+  if (coarser_neighbors.size() == 0)
+    return;
 
   // for infinite elements, the computation of constraints is somewhat different
   // than for Lagrange elements:
@@ -1279,7 +1288,7 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
   //    Thus, in radial direction no constraints must be considered.
   // 2) Due to the tensorial structure of shape functions (base_shape * radial_function),
   //    it must be ensured that all element DOFs inherit that constraint.
-  // Consequently, the constraints are computed on the base (baseh_shape) but must
+  // Consequently, the constraints are computed on the base (base_shape) but must
   // be applied to all DOFs with the respective base_shape index (i.e. for all radial_functions).
 
   FEType fe_type = dof_map.variable_type(variable_number);
@@ -1319,14 +1328,14 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
 
 #ifdef DEBUG
       if (base_shape_index[n] > max_base_id)
-         max_base_id = base_shape_index[n];
+        max_base_id = base_shape_index[n];
       if (radial_shape_index[n] > max_radial_id)
-         max_radial_id = radial_shape_index[n];
+        max_radial_id = radial_shape_index[n];
 #endif
     }
 
 #ifdef DEBUG
-   libmesh_assert_equal_to( (max_base_id+1)*(max_radial_id+1), n_total_dofs );
+  libmesh_assert_equal_to( (max_base_id+1)*(max_radial_id+1), n_total_dofs );
 #endif
 
   std::unique_ptr<const Elem> child_side, parent_side;
@@ -1343,7 +1352,7 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
                        variable_number);
 
 
-  // First we loop over childs side DOFs (nodes) and check which of them needs constraint
+  // First we loop over the childs base DOFs (nodes) and check which of them needs constraint
   // and which can be skipped.
   for (unsigned int child_side_dof=0; child_side_dof != n_side_dofs; ++child_side_dof)
     {
@@ -1374,10 +1383,25 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
       if (self_constraint)
         continue;
 
+      // if the base is not coarser, than only those DOFS shared with respective neighbors need constraints:
+      if (coarser_neighbors[0] != 0)
+        {
+          bool needs_account=false;
+          for (auto & X : coarser_neighbors)
+            if ( child_elem->neighbor_ptr(X)->contains_point(child_side->point(child_side_dof)) )
+              {
+                needs_account=true;
+                break;
+              }
+          if (!needs_account)
+            continue;
+        }
+
       // now we need to constrain all __child_elem__ DOFs whose base corresponds to
       // child_side_dof.
       //  --> loop over all child_elem dofs whose base_shape_index == child_side_dof
       unsigned int n_elem_dofs = FEInterface::n_dofs(fe_type, child_elem);
+      libmesh_assert_equal_to(n_elem_dofs, n_total_dofs);
       for(unsigned int child_elem_dof=0; child_elem_dof != n_elem_dofs; ++child_elem_dof)
         {
           if (base_shape_index[child_elem_dof] != child_side_dof)
@@ -1435,6 +1459,11 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
                   if (base_shape_index[parent_elem_dof] != parent_side_dof)
                     continue;
 
+                  // only constrain with coinciding radial DOFs.
+                  // Otherwise, we start coupling all DOFs with each other and end up in a mess.
+                  if (radial_shape_index[parent_elem_dof] != radial_shape_index[child_elem_dof])
+                    continue;
+
                   // Their global dof index.
                   const dof_id_type parent_elem_dof_g =
                     parent_elem_dof_indices[parent_elem_dof];
@@ -1450,10 +1479,10 @@ void InfFE<Dim, T_radial, T_map>::inf_compute_constraints (DofConstraints & cons
                   // Protect for the case u_i = 0.999 u_j,
                   // in which case i better equal j.
                   else if (parent_base_dof_value >= .999)
-                  {
-                    libmesh_assert_equal_to (child_side_dof_g, parent_side_dof_indices[parent_side_dof]);
-                    libmesh_assert_equal_to (child_elem_dof_g, parent_elem_dof_g);
-                  }
+                    {
+                      libmesh_assert_equal_to (child_side_dof_g, parent_side_dof_indices[parent_side_dof]);
+                      libmesh_assert_equal_to (child_elem_dof_g, parent_elem_dof_g);
+                    }
 #endif
                 }
 
