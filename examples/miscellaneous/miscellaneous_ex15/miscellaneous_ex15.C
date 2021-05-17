@@ -46,7 +46,6 @@
 // for infinite elements:
 #include "libmesh/inf_fe.h"
 #include "libmesh/inf_elem_builder.h"
-//#include "libmesh/fe_interface.h"
 // for refinement:
 #include "libmesh/error_vector.h"
 #include "libmesh/mesh_refinement.h"
@@ -267,7 +266,6 @@ int main (int argc, char** argv)
   // Solve system. This function calls the assemble-functions.
   eig_sys.solve();
 
-  // NOW THE REFINEMENT-LOOP comes; we use uniform_refinement.
   for (unsigned int i=0; i< 2; ++i)
     {
 

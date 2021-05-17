@@ -29,7 +29,6 @@
 #include "libmesh/fe.h"
 
 #include "libmesh/face_tri6.h"
-//#include "libmesh/cell_tet4.h"
 
 using namespace libMesh;
 
